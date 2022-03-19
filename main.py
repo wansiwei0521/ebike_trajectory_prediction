@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 12:56:00
-LastEditTime: 2022-03-18 17:11:50
+LastEditTime: 2022-03-19 14:11:03
 LastEditors: Vansw
 Description: main process
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//LocalGit//thesis//something done//main.py
+FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//main.py
 """
 import sys, os
 import numpy as np
@@ -17,7 +17,7 @@ import datetime
 # self construstion
 from reward_cnn import RewardFunctionNet
 from loss_func import maxentirl_loss
-from param_store import save_weights,load_weights
+from units import save_weights,load_weights
 from agent import Agent
 
 env_id = 'IntersectionEnv-v1'
