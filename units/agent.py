@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-19 10:06:34
-LastEditTime: 2022-03-20 10:52:35
+LastEditTime: 2022-03-20 15:24:32
 LastEditors: Vansw
 Description: generate training trajs
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//agent.py
+FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//units//agent.py
 """
 
 from stable_baselines3 import SAC, PPO, DDPG, DQN, HerReplayBuffer
@@ -27,8 +27,11 @@ class Agent:
         
         for i in range(n_traj):
             if expert_trajs is not None:
-                for expert_traj_state in expert_trajs[i]:
-                    trajs.append(self._generate_single_trajs(expert_traj_state))
+                # for expert_traj_state in expert_trajs[i]:
+                #     trajs.append(self._generate_single_trajs(expert_traj_state))
+                
+                trajs.append(self._generate_single_trajs(expert_trajs[0]))
+                
             else:
                 trajs.append(self._generate_single_trajs())
 
