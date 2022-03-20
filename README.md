@@ -7,10 +7,31 @@
  * @Description: ebike trajectory prediction
  * @FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//README.md
 -->
-# ebike trajectory prediction IRL
-### 更新记录
-3.19 完成框架
 
-### 参考
+# Ebike Trajectory Prediction IRL
+
+### Introduction
+
+Retrieving potential reward functions for ebike crossing behavior using maximum entropy deep inverse reinforcement learning.
+
+### Dependencies
+
+```
+gym >=1.8 
+tensorflow >= 2.0
+tensorlayer
+stable-baselines3
+```
+
+### Update
+
+3.19 Building Framework
+
+3.20 fix bugs
+
+### Next
 
 
+### Reference
+
+[Preference-Planning-Deep-IRL](https://github.com/tonylitianyu/Preference-Planning-Deep-IRL)
