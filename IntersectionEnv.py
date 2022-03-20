@@ -3,36 +3,21 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-03-18 14:35:38
+LastEditTime: 2022-03-20 11:00:47
 LastEditors: Vansw
-Description: IntersectionEnv without traffic signal
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//LocalGit//thesis//something done//IntersectionEnv.py
+Description: IntersectionEnv with traffic signal
+FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//IntersectionEnv.py
 """
 from gym import spaces, core
 from gym.utils import seeding
 import numpy as np
 import pandas as pd
-# import torch
 import tensorflow as tf
-
-# core.Env 是 gym 的环境基类,自定义的环境就是根据自己的需要重写其中的方法；
-# 必须要重写的方法有: 
-# __init__()：构造函数
-# reset()：初始化环境
-# step()：环境动作,即环境对agent的反馈
-# render()：如果要进行可视化则实现
-
-
-# class Car():
-#     def __init__(self, trac):
-#         self.trac = trac
-#         pass
-
 
 class IntersectionEnv(core.Env):
     """
     Description:
-        十秒为单位进行预测、训练
+        Prediction and training in target_time increments, which default value is ten-second
 
     Source:
 
@@ -65,15 +50,16 @@ class IntersectionEnv(core.Env):
     """
 
     
-    def __init__(self, reward_func=None):
+    def __init__(self, reward_func=None, target_time=10):
         
         super(IntersectionEnv, self).__init__()
         
         # other init
         self.interval_time = 1
         self.crash_threshould = 1
-        self.target_time = 10
+        self.target_time = target_time
         self.reward_func = reward_func
+        self.environment_car_pos = None
         
         # dimension
         self.observation_dim = 8
@@ -144,9 +130,9 @@ class IntersectionEnv(core.Env):
             self.environment_car_pos = pd.read_csv(file_dir, encoding=encoding)
         pass
         
-    def reset(self,random_state=True,ordinary_state =None):
+    def reset(self, ordinary_state=None):
         # ordinary position do not fix
-        if random_state:
+        if ordinary_state is None:
             self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(self.observation_dim,))
         else:
             self.state = ordinary_state
@@ -158,7 +144,7 @@ class IntersectionEnv(core.Env):
         obs = self._get_observation(action)
         done = self._get_done()
         reward = self._get_reward(done)
-        # 用于记录训练过程中的环境信息,便于观察训练状态
+        # record the information of training
         info = {}
         return obs, reward, done, info
 
@@ -171,7 +157,7 @@ class IntersectionEnv(core.Env):
     def _get_observation(self, action):
         
         x,y,vx,vy,near_car_dis,traffic_sign,time,last_time = self.state
-        intersection_car_location = self.environment_car_pos
+        
         
         # Kinesiology
         x = vx * self.interval_time + \
@@ -185,12 +171,17 @@ class IntersectionEnv(core.Env):
         
         # nearest car
         # ! 轨迹只保留碰撞之前
-        temp_df = intersection_car_location[intersection_car_location['time']==time]
-        del temp_df['time']
-        temp_array = np.array(temp_df)
-        temp_array = np.square(temp_array) - np.square(np.array([x,y]))
-        near_car_dis = temp_array.sum(axis=1).min()
         
+        try:
+            intersection_car_location = self.environment_car_pos
+            temp_df = intersection_car_location[intersection_car_location['time']==time]
+            del temp_df['time']
+            temp_array = np.array(temp_df)
+            temp_array = np.square(temp_array) - np.square(np.array([x,y]))
+            near_car_dis = temp_array.sum(axis=1).min()
+        except Exception:
+            near_car_dis = 200
+            
         # traffic
         traffic_sign -= self.interval_time
         traffic_sign = 0 if traffic_sign <= 0 else traffic_sign
@@ -203,14 +194,14 @@ class IntersectionEnv(core.Env):
         return np.array(self.state)
 
     def _get_reward(self, done):
-        # ! random reward function
         # ! done or other??
-        
-        reward = 0
-        
+
         if self.reward_func is not None:
             fe_tensor = tf.convert_to_tensor(np.array(self.state), dtype=np.float32)
-            reward = self.reward_func(fe_tensor)
+            reward = self.reward_func(fe_tensor).numpy().flatten()
+            reward = reward if len(reward)>1 else reward[0] # unnormal get value of tensor
+        else:
+            reward = 0
         
         # feature_num = 8 
         # theta = np.random.normal(0, 1, size=feature_num)

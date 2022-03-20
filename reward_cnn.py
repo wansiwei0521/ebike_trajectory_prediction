@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-17 14:47:21
-LastEditTime: 2022-03-18 15:35:41
+LastEditTime: 2022-03-20 10:38:16
 LastEditors: Vansw
 Description: reward function net
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//LocalGit//thesis//something done//reward_cnn.py
+FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//reward_cnn.py
 """
 import numpy as np
 import tensorflow as tf
@@ -54,5 +54,6 @@ if __name__ == '__main__':
     reward = RewardFunctionNet(8,32)
     reward.train()
     print(reward)
-    r = reward(fe_tensor)
+    r = reward(fe_tensor).numpy().flatten()[0]
+    
     print(r)

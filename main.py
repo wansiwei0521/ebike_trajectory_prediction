@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 12:56:00
-LastEditTime: 2022-03-19 14:11:03
+LastEditTime: 2022-03-19 18:28:01
 LastEditors: Vansw
 Description: main process
 FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//main.py
@@ -13,6 +13,11 @@ import numpy as np
 import tensorflow as tf
 import gym
 import datetime
+
+# redirect working dir
+# working_dir = ""
+# os.chdir(working_dir)
+# print(os.getcwd())
 
 # self construstion
 from reward_cnn import RewardFunctionNet
@@ -51,6 +56,7 @@ reward_train_episode = 200
 lr = 3e-4
 
 reward_func = RewardFunctionNet(obs_dim,hidden_dim)
+reward_func.train()
 # 优化器！！adam
 # ! agent 有待改进
 for i_epi in range(reward_train_episode):
