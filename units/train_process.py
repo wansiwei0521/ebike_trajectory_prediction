@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-20 11:23:31
-LastEditTime: 2022-03-20 16:33:23
+LastEditTime: 2022-03-25 14:51:19
 LastEditors: Vansw
 Description: train process
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//units//train_process.py
+FilePath: //ebike_trajectory_prediction//units//train_process.py
 """
 from cgi import test
 import sys, os
@@ -22,11 +22,15 @@ from units.agent import Agent
 total_timesteps = 30
 log_interval = 30
 
-def train_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr,curr_model_path):
+def train_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path=None):
 
     for i_epi in tqdm(range(reward_train_episode)):
         
-        agent = Agent(gym.make(env_id, reward_func=reward_func, target_time=10), total_timesteps, log_interval)
+        env = gym.make(env_id, reward_func=reward_func, target_time=100)
+        if env_pos_path is not None:
+            env.set_environment_pos(env_pos_path)
+        
+        agent = Agent(env, total_timesteps, log_interval)
         
         # 有问题 生成轨迹问题 动态起点
         test_traj = agent.generate_agent_traj(1,expert_single_traj)[0]

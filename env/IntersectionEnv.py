@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-03-20 11:00:47
+LastEditTime: 2022-03-25 17:15:58
 LastEditors: Vansw
 Description: IntersectionEnv with traffic signal
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//IntersectionEnv.py
+FilePath: //ebike_trajectory_prediction//env//IntersectionEnv.py
 """
 from gym import spaces, core
 from gym.utils import seeding
@@ -175,7 +175,8 @@ class IntersectionEnv(core.Env):
         try:
             intersection_car_location = self.environment_car_pos
             temp_df = intersection_car_location[intersection_car_location['time']==time]
-            del temp_df['time']
+            temp_df = temp_df[['x','y']]
+            # del temp_df['time']
             temp_array = np.array(temp_df)
             temp_array = np.square(temp_array) - np.square(np.array([x,y]))
             near_car_dis = temp_array.sum(axis=1).min()

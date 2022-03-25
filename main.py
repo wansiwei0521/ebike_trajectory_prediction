@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 12:56:00
-LastEditTime: 2022-03-20 16:24:31
+LastEditTime: 2022-03-25 17:35:29
 LastEditors: Vansw
 Description: main process
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//main.py
+FilePath: //ebike_trajectory_prediction//main.py
 """
 import sys, os
 import numpy as np
@@ -42,9 +42,10 @@ if not os.path.isdir(curr_model_path):
 #    os.makedirs(curr_visual_path)
 
 # loading expert trajs
-trajs_filepath = work_dir+"/expert_trajs"
-human_trajs = np.load(trajs_filepath+"/expert_trajs.npy")
-expert_trajs = np.array(human_trajs).copy()
+trajs_filepath = work_dir+"./data/trajs"
+human_trajs = np.load(trajs_filepath+"/1_左转一号.npy")
+expert_trajs = np.array(human_trajs,dtype=np.float32).copy()
+env_pos_path = './data/111.csv'
 
 obs_dim = env.observation_space.shape[0]
 hidden_dim = 32
@@ -59,4 +60,4 @@ reward_func.train()
 # for i in range(len(expert_trajs)):
 #     expert_single_traj = expert_trajs[i]
 #     train_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path)
-train_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path)
+train_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path)

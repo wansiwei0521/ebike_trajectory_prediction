@@ -3,17 +3,18 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-24 17:16:43
-LastEditTime: 2022-03-25 14:16:35
+LastEditTime: 2022-03-25 17:34:45
 LastEditors: Vansw
 Description: 
-FilePath: //ebike_trajectory_predictiond://MyProject//LocalGit//thesis//trajs_process//ebike_traj_kin.py
+FilePath: //ebike_trajectory_prediction//trajs_process//ebike_traj_kin.py
 """
 import numpy as np
 import csv
 import os
 from traj_smooth import smooth_dataset
+from trajs_process.state_process import state_process
 
-filename='./电动车轨迹.CSV'
+filename='./trajs_process/电动车轨迹.CSV'
 restore_sig = 0
 # data = []
 # trajs = {}
@@ -21,6 +22,7 @@ curr_path = os.getcwd()
 traj_names = []
 trajs_num = 0
 smoothing_window = 11
+env_pos_path = './data/111.csv'
 
 with open(filename) as csvfile:
     csv_reader = csv.reader(csvfile)
@@ -39,14 +41,17 @@ with open(filename) as csvfile:
                 #     save_path = curr_path+f"\{traj_name}{trajs_num}.npy"
                 # else:
                 #     save_path = curr_path+f"\{traj_name}.npy"
-                save_path = curr_path+f"\{trajs_num}_{traj_name}.npy"
-                print(save_path)
+                save_path = curr_path+f"/data/trajs/{trajs_num}_{traj_name}.npy"
                 
                 # change type
                 traj = traj.astype(np.float32)
                 traj_smooth =  smooth_dataset(smoothing_window, traj)
                 
-                np.save(save_path,traj_smooth)
+                # state process
+                traj_state_process = state_process(traj,env_pos_path)
+                
+                np.save(save_path,traj_state_process)
+                print(save_path)
             traj = []
             traj_name = row[1]
             traj_names.append(traj_name)
