@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-03-25 17:15:58
+LastEditTime: 2022-03-26 20:51:37
 LastEditors: Vansw
 Description: IntersectionEnv with traffic signal
 FilePath: //ebike_trajectory_prediction//env//IntersectionEnv.py
@@ -13,6 +13,7 @@ from gym.utils import seeding
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from ruamel.yaml import YAML
 
 class IntersectionEnv(core.Env):
     """
@@ -23,15 +24,15 @@ class IntersectionEnv(core.Env):
 
     Observation:
         Type: Box(8)
-        Num     Observation               Min                     Max
-        0       ebike Position x          -1000                  1000
-        1       ebike Position y          -1000                  1000
-        2       ebike Vx                  -20                    20
-        3       ebike Vy                  -20                    20
-        4       nearest car dis            0                     100
-        5       traffic signal             0                     20
-        6       time                      -Inf                   Inf
-        7       duration(time last)        0                     10
+        Num     Observation               Min                  Max      Feature
+        0       ebike Position x          -1000               1000      
+        1       ebike Position y          -1000               1000      middle or side of the road
+        2       ebike Vx                  -20                 20        
+        3       ebike Vy                  -20                 20        speeding
+        4       nearest car dis            0                  100       grade
+        5       traffic signal             0                  20        greeb,red = 1,0
+        6       time                      -Inf                Inf       
+        7       waiting time               0                  Inf        waiting time
 
     Actions:
         Type: Box(2)
@@ -54,12 +55,25 @@ class IntersectionEnv(core.Env):
         
         super(IntersectionEnv, self).__init__()
         
+        # feature init
+        self.road_x_top = None
+        self.road_x_down = None
+        self.road_y_top = None
+        self.road_y_down = None
+        self.speeding = None
+        self.safe_dis = None
+        self.fps_second = None
+        self.feature_gamma = None
+        self.wait_time_threshold = None
+        
         # other init
-        self.interval_time = 1
+        self.interval_time = 1 # fps
         self.crash_threshould = 1
         self.target_time = target_time
         self.reward_func = reward_func
         self.environment_car_pos = None
+        self.threshold_vel = 3 # is moving or not
+        self.time_count = None
         
         # dimension
         self.observation_dim = 8
@@ -73,7 +87,7 @@ class IntersectionEnv(core.Env):
         self.traffic_signal_min = 0
         self.traffic_signal_max = 20
         self.last_time_threshould_min = 0
-        self.last_time_threshould_max = 10
+        # self.last_time_threshould_max = 10
         self.acc_threshould = 3
         
         act_high = np.array([
@@ -89,7 +103,7 @@ class IntersectionEnv(core.Env):
             self.car_pos_threshould_max,
             self.traffic_signal_max,
             np.finfo(np.float32).max,
-            self.last_time_threshould_max
+            np.finfo(np.float32).max
         ],dtype=np.float32)
         
         obs_low = np.array([
@@ -112,6 +126,12 @@ class IntersectionEnv(core.Env):
         self.seed()
         self.state = None
         
+        # self._A = np.array([[0,0],
+        #                     [0,0]])
+        # self._B = np.array([[1,0],
+        #                     [0,1]]) 
+        
+        
         # environment pos
         # self.env_pos_file_dir = None
         # self.env_pos_encoding = None
@@ -125,13 +145,63 @@ class IntersectionEnv(core.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
     
-    def set_environment_pos(self, file_dir=None, encoding="utf-8"):
-        if file_dir:
-            self.environment_car_pos = pd.read_csv(file_dir, encoding=encoding)
+    def set_environment_pos(self, file_path=None, encoding="utf-8"):
+        # if car_file_path:
+        #     self.environment_car_pos = pd.read_csv(car_file_path, encoding=encoding)
+            
+        if file_path:
+            yaml = YAML()
+            config = yaml.load(open(file_path))
+            self.road_x_top, self.road_x_down, self.road_y_top, self.road_y_down = config['road_boundary']
+            self.speeding = config['speeding']
+            self.safe_dis = config['safe_distence']
+            self.fps_second = config['fps_second']
+            self.wait_time_threshold = config['wait_time_threshold']
+            self.feature_gamma = config['feature_gamma']
+            car_file_path = config['car_file_path']
+            self.environment_car_pos = pd.read_csv(car_file_path, encoding=encoding)
         pass
         
+    def get_state_feature(self, state):
+        
+        x,y,vx,vy,near_car_dis,traffic_sign,time,last_time = state
+        
+        # middle 1 or side 0 of the intersection
+        loc_of_road = 1 if self.road_x_down<x<self.road_x_top and self.road_y_down<y<self.road_y_top else 0
+        
+        # speeding: 1 for speeding
+        vel = np.array([vx,vy])
+        speeding = 1 if np.linalg.norm(vel)>self.speeding else 0
+        
+        # distence of car: safe for 1
+        distence_of_car = 1 if near_car_dis>=self.safe_dis else 0
+        
+        # traffic sign: red for 1
+        traf_sign = 1 if traffic_sign>0 else 0
+        
+        # waiting time
+        wait_time_thre = self.fps_second * self.wait_time_threshold
+        wait = 1 if last_time>=wait_time_thre else 0
+        
+        feature = [loc_of_road, speeding, distence_of_car, traf_sign, wait]
+        
+        return np.array(feature)
+    
+    def get_feature(self, traj):
+        feature_traj = []
+        for t in range(0,len(traj)):
+            curr_obs = (self.feature_gamma**t)*self.get_state_feature(traj[t])
+            feature_traj.append(curr_obs)
+        return np.array(feature_traj)
+    
+    # transiton model
+    # def f(self,x,u): 
+    #     return self._A @ x + self._B @ u 
+    
     def reset(self, ordinary_state=None):
-        # ordinary position do not fix
+        
+        self.time_count = 0 # time counting
+        
         if ordinary_state is None:
             self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(self.observation_dim,))
         else:
@@ -140,7 +210,9 @@ class IntersectionEnv(core.Env):
         return np.array(self.state)
 	
     def step(self, action):
-        # such a important thing!!
+        
+        self.time_count += 1
+        
         obs = self._get_observation(action)
         done = self._get_done()
         reward = self._get_reward(done)
@@ -188,17 +260,22 @@ class IntersectionEnv(core.Env):
         traffic_sign = 0 if traffic_sign <= 0 else traffic_sign
         
         # last time
-        last_time += self.interval_time
+        # last_time += self.interval_time
+        # threshold_vel = 3 # 3 px/fps
+        if abs(vx) <= self.threshold_vel and abs(vy) <= self.threshold_vel:
+            last_time += self.interval_time
+        else:
+            last_time = 0
         
         self.state = (x,y,vx,vy,near_car_dis,traffic_sign,time,last_time)
         
         return np.array(self.state)
 
     def _get_reward(self, done):
-        # ! done or other??
+        # ! target zone?
 
         if self.reward_func is not None:
-            fe_tensor = tf.convert_to_tensor(np.array(self.state), dtype=np.float32)
+            fe_tensor = tf.convert_to_tensor(np.array(self.get_state_feature(self.state)), dtype=np.float32)
             reward = self.reward_func(fe_tensor).numpy().flatten()
             reward = reward if len(reward)>1 else reward[0] # unnormal get value of tensor
         else:
@@ -214,7 +291,7 @@ class IntersectionEnv(core.Env):
         
         done = bool(
             self.state[4] <= self.crash_threshould
-            or self.state[7] > self.target_time
+            or self.time_count > self.target_time
             or not -self.pos_threshould<=self.state[0]<=self.pos_threshould
             or not -self.pos_threshould<=self.state[0]<=self.pos_threshould
         )

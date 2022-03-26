@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-24 17:16:43
-LastEditTime: 2022-03-25 17:34:45
+LastEditTime: 2022-03-26 20:45:21
 LastEditors: Vansw
 Description: 
 FilePath: //ebike_trajectory_prediction//trajs_process//ebike_traj_kin.py
@@ -45,6 +45,7 @@ with open(filename) as csvfile:
                 
                 # change type
                 traj = traj.astype(np.float32)
+                traj = np.abs(traj)
                 traj_smooth =  smooth_dataset(smoothing_window, traj)
                 
                 # state process
@@ -58,6 +59,7 @@ with open(filename) as csvfile:
             trajs_num += 1
             
         if restore_sig:
+            
             traj.append(row)
 
         if row[0] == 'x':

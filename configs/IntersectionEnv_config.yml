@@ -1,0 +1,7 @@
+road_boundary: [1200,600,1350,1100]
+speeding: 1
+safe_distence: 5000
+fps_second: 24
+wait_time_threshold: 10
+feature_gamma: 0.9
+car_file_path: './data/111.csv'

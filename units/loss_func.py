@@ -3,10 +3,10 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 10:25:10
-LastEditTime: 2022-03-18 11:04:10
+LastEditTime: 2022-03-25 21:03:20
 LastEditors: Vansw
 Description: loss function
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//LocalGit//thesis//something done//loss_func.py
+FilePath: //ebike_trajectory_prediction//units//loss_func.py
 """
 import tensorflow as tf
 import numpy as np
@@ -19,7 +19,7 @@ def maxentirl_loss(learner, expert, reward_func):
     expert_reward = tf.reshape(reward_func(expert_tensor),[-1])
     
     # 1000 how to define
-    return 1000 * (tf.reduce_mean(learner_reward) - tf.reduce_mean(expert_reward))
+    return tf.abs(tf.reduce_mean(expert_reward) - tf.reduce_mean(learner_reward))
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 12:56:00
-LastEditTime: 2022-03-25 17:35:29
+LastEditTime: 2022-03-26 20:50:33
 LastEditors: Vansw
 Description: main process
 FilePath: //ebike_trajectory_prediction//main.py
@@ -45,15 +45,17 @@ if not os.path.isdir(curr_model_path):
 trajs_filepath = work_dir+"./data/trajs"
 human_trajs = np.load(trajs_filepath+"/1_左转一号.npy")
 expert_trajs = np.array(human_trajs,dtype=np.float32).copy()
-env_pos_path = './data/111.csv'
+env_pos_path = './configs/IntersectionEnv_config.yml'
 
 obs_dim = env.observation_space.shape[0]
+feature_dim = 5
 hidden_dim = 32
 reward_train_episode = 200
 lr = 3e-4
 
 
-reward_func = RewardFunctionNet(obs_dim,hidden_dim)
+# reward_func = RewardFunctionNet(obs_dim,hidden_dim)
+reward_func = RewardFunctionNet(feature_dim,hidden_dim)
 reward_func.train()
 
 # train process

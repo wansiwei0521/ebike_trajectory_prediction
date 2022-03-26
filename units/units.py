@@ -3,26 +3,26 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 13:34:03
-LastEditTime: 2022-03-19 14:10:26
+LastEditTime: 2022-03-26 19:57:13
 LastEditors: Vansw
 Description: sub function
-FilePath: //Preference-Planning-Deep-IRLd://MyProject//ebike_trajectory_prediction//units.py
+FilePath: //ebike_trajectory_prediction//units//units.py
 """
 
 import numpy as np
 import tensorlayer as tl
 
-# extract feature
-def get_feature(state):
-    state_feature = state
-    return state_feature
+# # extract feature
+# def get_feature(state):
+#     state_feature = state
+#     return state_feature
 
-def get_feature_expectation(traj,feature_gamma=1):
-    feature_traj = []
-    for t in range(0,len(traj)):
-        curr_obs = (feature_gamma**t)*traj[t]
-        feature_traj.append(curr_obs)
-    return np.array(feature_traj)
+# def get_feature_expectation(traj,feature_gamma=1):
+#     feature_traj = []
+#     for t in range(0,len(traj)):
+#         curr_obs = (feature_gamma**t)*traj[t]
+#         feature_traj.append(curr_obs)
+#     return np.array(feature_traj)
 
 # saving and loading model
 def save_weights(reward_func, path):  # save trained weights
