@@ -3,27 +3,31 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-20 11:23:31
-LastEditTime: 2022-03-26 20:37:27
+LastEditTime: 2022-03-30 14:09:17
 LastEditors: Vansw
 Description: train process
 FilePath: //ebike_trajectory_prediction//units//train_process.py
 """
+from ast import Return
 from cgi import test
 import sys, os
 import tensorflow as tf
 import gym
 from tqdm import tqdm
 import datetime
+from stable_baselines3 import SAC
 
 # self construstion
 from units.loss_func import maxentirl_loss
-from units.units import save_weights,load_weights
+from units.units import save_weights,load_weights,generate_single_traj,graph
 from units.agent import Agent
+from units.reward_cnn import RewardFunctionNet
+
 
 total_timesteps = 200
 log_interval = 200
 
-def train_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path=None):
+def train_irl_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path=None):
 
     target_time = len(expert_single_traj)
 
@@ -58,6 +62,10 @@ def train_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr
         
         # saving reward model
         if i_epi % 100 == 0 or i_epi == reward_train_episode - 1:
+            
+            if not os.path.isdir(curr_model_path):
+                os.makedirs(curr_model_path)
+            
             print(f'episode:{i_epi+1}, model saved!')
             save_weights(reward_func,curr_model_path)
             
@@ -66,3 +74,29 @@ def train_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr
             
         # Reset metrics every epoch
         # train_loss.reset_states()
+        
+    return curr_model_path
+
+def train_rl(expert_traj,feature_dim,hidden_dim,model_save_path,env_id,env_pos_path,curr_model_path):
+    
+    target_time = len(expert_traj)
+    
+    reward_func = RewardFunctionNet(feature_dim,hidden_dim)
+    reward_func.eval()
+    load_weights(reward_func,model_save_path)
+    
+    env = gym.make(env_id, reward_func=reward_func, target_time=target_time)
+    if env_pos_path is not None:
+        env.set_environment_pos(env_pos_path)
+        
+    model = SAC('MlpPolicy', env, verbose=1)
+    model.learn(total_timesteps=total_timesteps, log_interval=log_interval)
+    
+    if not os.path.isdir(curr_model_path):
+        os.makedirs(curr_model_path)
+    
+    model.save(curr_model_path)
+    
+    test_traj = generate_single_traj(env,model,expert_traj[1])
+    
+    graph(expert_traj,test_traj)

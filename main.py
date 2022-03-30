@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 12:56:00
-LastEditTime: 2022-03-26 20:50:33
+LastEditTime: 2022-03-30 14:09:48
 LastEditors: Vansw
 Description: main process
 FilePath: //ebike_trajectory_prediction//main.py
@@ -16,7 +16,7 @@ import datetime
 
 # self construstion
 from units.reward_cnn import RewardFunctionNet
-from units.train_process import train_process
+from units.train_process import train_irl_process, train_rl
 
 # redirect working dir
 # working_dir = ""
@@ -27,15 +27,12 @@ work_dir = os.getcwd()
 env_id = 'IntersectionEnv-v1'
 env = gym.make(env_id,reward_func=None)
 
-
+# model saved path
 curr_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 curr_run_path = "trained_models/{}/{}".format(env_id, curr_time)
-if not os.path.isdir(curr_run_path):
-   os.makedirs(curr_run_path)
-
 curr_model_path = curr_run_path + "/models"
-if not os.path.isdir(curr_model_path):
-   os.makedirs(curr_model_path)
+# if not os.path.isdir(curr_run_path):
+#    os.makedirs(curr_run_path)
 
 # curr_visual_path = curr_run_path + "/visuals"
 # if not os.path.isdir(curr_visual_path):
@@ -43,7 +40,7 @@ if not os.path.isdir(curr_model_path):
 
 # loading expert trajs
 trajs_filepath = work_dir+"./data/trajs"
-human_trajs = np.load(trajs_filepath+"/1_左转一号.npy")
+human_trajs = np.load(trajs_filepath+"/2_左转2号.npy")
 expert_trajs = np.array(human_trajs,dtype=np.float32).copy()
 env_pos_path = './configs/IntersectionEnv_config.yml'
 
@@ -62,4 +59,9 @@ reward_func.train()
 # for i in range(len(expert_trajs)):
 #     expert_single_traj = expert_trajs[i]
 #     train_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path)
-train_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path)
+reward_func_path = train_irl_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path)
+
+# reward_func_path = './trained_models/IntersectionEnv-v1/2022-03-29_11-10-07/models'
+# curr_model_path = './trained_models/IntersectionEnv-v1/2022-03-29_11-10-07/models'
+
+train_rl(expert_trajs,feature_dim,hidden_dim,reward_func_path,env_id,env_pos_path,curr_model_path)

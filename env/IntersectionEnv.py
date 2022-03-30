@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-03-26 20:51:37
+LastEditTime: 2022-03-29 11:06:42
 LastEditors: Vansw
 Description: IntersectionEnv with traffic signal
 FilePath: //ebike_trajectory_prediction//env//IntersectionEnv.py
@@ -25,11 +25,11 @@ class IntersectionEnv(core.Env):
     Observation:
         Type: Box(8)
         Num     Observation               Min                  Max      Feature
-        0       ebike Position x          -1000               1000      
-        1       ebike Position y          -1000               1000      middle or side of the road
-        2       ebike Vx                  -20                 20        
-        3       ebike Vy                  -20                 20        speeding
-        4       nearest car dis            0                  100       grade
+        0       ebike Position x          -3000               3000      
+        1       ebike Position y          -3000               3000      middle or side of the road
+        2       ebike Vx                  -10                 10        
+        3       ebike Vy                  -10                 10        speeding
+        4       nearest car dis            0                  1000       grade
         5       traffic signal             0                  20        greeb,red = 1,0
         6       time                      -Inf                Inf       
         7       waiting time               0                  Inf        waiting time
@@ -72,18 +72,19 @@ class IntersectionEnv(core.Env):
         self.target_time = target_time
         self.reward_func = reward_func
         self.environment_car_pos = None
-        self.threshold_vel = 3 # is moving or not
+        self.threshold_vel = 0.3 # is moving or not 5/24
         self.time_count = None
+        self.vel_limited = 6.5
         
         # dimension
         self.observation_dim = 8
         self.action_dim = 2
         
         # threshould of the obs and act space
-        self.pos_threshould = 1000
-        self.vel_threshould = 20
+        self.pos_threshould = 3000
+        self.vel_threshould = 10
         self.car_pos_threshould_min = 0
-        self.car_pos_threshould_max = 100
+        self.car_pos_threshould_max = 1000
         self.traffic_signal_min = 0
         self.traffic_signal_max = 20
         self.last_time_threshould_min = 0
@@ -236,8 +237,14 @@ class IntersectionEnv(core.Env):
             0.5 * action[0] * self.interval_time **2
         y = vy * self.interval_time + \
             0.5 * action[1] * self.interval_time **2
+        
         vx = vx + action[0] * self.interval_time
         vy = vy + action[1] * self.interval_time
+        
+        # ebike max velosity limitation
+        vel = np.array([vx,vy])
+        vel = np.clip(vel,-self.vel_limited,self.vel_limited)
+        vx, vy = vel
         
         time += self.interval_time
         

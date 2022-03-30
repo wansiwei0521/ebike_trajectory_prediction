@@ -1,5 +1,5 @@
 road_boundary: [1200,600,1350,1100]
-speeding: 1
+speeding: 3
 safe_distence: 5000
 fps_second: 24
 wait_time_threshold: 10

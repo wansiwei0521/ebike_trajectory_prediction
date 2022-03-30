@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-24 17:16:43
-LastEditTime: 2022-03-26 20:45:21
+LastEditTime: 2022-03-29 10:02:03
 LastEditors: Vansw
 Description: 
 FilePath: //ebike_trajectory_prediction//trajs_process//ebike_traj_kin.py
@@ -13,6 +13,7 @@ import csv
 import os
 from traj_smooth import smooth_dataset
 from trajs_process.state_process import state_process
+from units.units import graph
 
 filename='./trajs_process/电动车轨迹.CSV'
 restore_sig = 0
@@ -35,17 +36,13 @@ with open(filename) as csvfile:
         if row[0]=='Label :':
             if trajs_num != 0:
                 traj = np.array(traj)
-                # trajs['traj_name'] = traj
-                # print(traj)
-                # if traj_name in traj_names:
-                #     save_path = curr_path+f"\{traj_name}{trajs_num}.npy"
-                # else:
-                #     save_path = curr_path+f"\{traj_name}.npy"
+                
                 save_path = curr_path+f"/data/trajs/{trajs_num}_{traj_name}.npy"
                 
                 # change type
                 traj = traj.astype(np.float32)
-                traj = np.abs(traj)
+                # traj = np.abs(traj)
+                traj[:,1] = traj[:,1] + np.array([1512])
                 traj_smooth =  smooth_dataset(smoothing_window, traj)
                 
                 # state process
@@ -53,6 +50,9 @@ with open(filename) as csvfile:
                 
                 np.save(save_path,traj_state_process)
                 print(save_path)
+                
+                graph(traj_state_process)
+                
             traj = []
             traj_name = row[1]
             traj_names.append(traj_name)
