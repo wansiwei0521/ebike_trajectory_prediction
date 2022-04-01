@@ -1,7 +1,14 @@
-road_boundary: [1200,600,1350,1100]
-speeding: 3
-safe_distence: 5000
+road_boundary: [800,300,800,300]
+speeding: 5.6
+safe_distence: 20
 fps_second: 24
 wait_time_threshold: 10
 feature_gamma: 0.9
-car_file_path: './data/111.csv'
+car_file_path: "D:/MyProject/ebike_trajectory_prediction/data/csv/222ROI_car_Trajectory.csv"
+interval_time: 1 # fps
+crash_threshould: 0.5
+target_time: 24 # 5s
+px_per_meter: 12.9
+threshold_vel: 0.5
+vel_limited: 5.6
+video_size: [1000,950]

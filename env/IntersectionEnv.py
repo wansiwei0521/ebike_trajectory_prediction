@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-03-29 11:06:42
+LastEditTime: 2022-04-01 22:28:13
 LastEditors: Vansw
 Description: IntersectionEnv with traffic signal
 FilePath: //ebike_trajectory_prediction//env//IntersectionEnv.py
@@ -51,40 +51,42 @@ class IntersectionEnv(core.Env):
     """
 
     
-    def __init__(self, reward_func=None, target_time=10):
+    def __init__(self, reward_func=None, file_path=None):
         
         super(IntersectionEnv, self).__init__()
         
+        yaml = YAML()
+        config = yaml.load(open(file_path))
         # feature init
-        self.road_x_top = None
-        self.road_x_down = None
-        self.road_y_top = None
-        self.road_y_down = None
-        self.speeding = None
-        self.safe_dis = None
-        self.fps_second = None
-        self.feature_gamma = None
-        self.wait_time_threshold = None
+        self.road_x_top, self.road_x_down, self.road_y_top, self.road_y_down = config['road_boundary']
+        self.speeding = config['speeding']
+        self.safe_dis = config['safe_distence']
+        self.fps_second = config['fps_second']
+        self.px_per_meter = config['px_per_meter']
+        self.wait_time_threshold = config['wait_time_threshold']
+        self.feature_gamma = config['feature_gamma']
+        car_file_path = config['car_file_path']
+        self.environment_car_pos = pd.read_csv(car_file_path, encoding="utf-8")
         
         # other init
-        self.interval_time = 1 # fps
-        self.crash_threshould = 1
-        self.target_time = target_time
+        self.interval_time = config['interval_time'] # fps
+        self.crash_threshould = config['crash_threshould']
+        self.target_time = config['target_time']
         self.reward_func = reward_func
-        self.environment_car_pos = None
-        self.threshold_vel = 0.3 # is moving or not 5/24
+        # self.environment_car_pos = None
+        self.threshold_vel = config['threshold_vel'] # is moving or not 5/24
         self.time_count = None
-        self.vel_limited = 6.5
+        self.vel_limited = config['vel_limited']
         
         # dimension
         self.observation_dim = 8
         self.action_dim = 2
         
         # threshould of the obs and act space
-        self.pos_threshould = 3000
-        self.vel_threshould = 10
+        self.pos_threshould_x,self.pos_threshould_y = config['video_size']
+        self.vel_threshould = 30 # m/s
         self.car_pos_threshould_min = 0
-        self.car_pos_threshould_max = 1000
+        self.car_pos_threshould_max = 200 
         self.traffic_signal_min = 0
         self.traffic_signal_max = 20
         self.last_time_threshould_min = 0
@@ -97,8 +99,8 @@ class IntersectionEnv(core.Env):
         ],dtype=np.float32)
         
         obs_high = np.array([
-            self.pos_threshould,
-            self.pos_threshould,
+            self.pos_threshould_x,
+            self.pos_threshould_y,
             self.vel_threshould,
             self.vel_threshould,
             self.car_pos_threshould_max,
@@ -108,8 +110,8 @@ class IntersectionEnv(core.Env):
         ],dtype=np.float32)
         
         obs_low = np.array([
-            -self.pos_threshould,
-            -self.pos_threshould,
+            0.0,
+            0.0,
             -self.vel_threshould,
             -self.vel_threshould,
             self.car_pos_threshould_min,
@@ -121,48 +123,15 @@ class IntersectionEnv(core.Env):
         self.action_space = spaces.Box(-act_high, act_high, dtype=np.float32)
         self.observation_space =  spaces.Box(obs_low,obs_high,dtype=np.float32)
         
-        
         # visualize
         # self.viewer = None
         self.seed()
         self.state = None
         
-        # self._A = np.array([[0,0],
-        #                     [0,0]])
-        # self._B = np.array([[1,0],
-        #                     [0,1]]) 
-        
-        
-        # environment pos
-        # self.env_pos_file_dir = None
-        # self.env_pos_encoding = None
-        # self.environment_car_pos = None
-        # self._get_environment_car_pos()
-        
-        
-        # self.steps_beyond_done = None
-        
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
     
-    def set_environment_pos(self, file_path=None, encoding="utf-8"):
-        # if car_file_path:
-        #     self.environment_car_pos = pd.read_csv(car_file_path, encoding=encoding)
-            
-        if file_path:
-            yaml = YAML()
-            config = yaml.load(open(file_path))
-            self.road_x_top, self.road_x_down, self.road_y_top, self.road_y_down = config['road_boundary']
-            self.speeding = config['speeding']
-            self.safe_dis = config['safe_distence']
-            self.fps_second = config['fps_second']
-            self.wait_time_threshold = config['wait_time_threshold']
-            self.feature_gamma = config['feature_gamma']
-            car_file_path = config['car_file_path']
-            self.environment_car_pos = pd.read_csv(car_file_path, encoding=encoding)
-        pass
-        
     def get_state_feature(self, state):
         
         x,y,vx,vy,near_car_dis,traffic_sign,time,last_time = state
@@ -188,20 +157,26 @@ class IntersectionEnv(core.Env):
         
         return np.array(feature)
     
-    def get_feature(self, traj):
-        feature_traj = []
-        for t in range(0,len(traj)):
-            curr_obs = (self.feature_gamma**t)*self.get_state_feature(traj[t])
-            feature_traj.append(curr_obs)
-        return np.array(feature_traj)
+    def get_feature(self, trajs):
+        feature_trajs = []
+        for traj in trajs:
+            feature_traj = []
+            for t in range(0,len(traj)):
+                curr_obs = (self.feature_gamma**t)*self.get_state_feature(traj[t])
+                feature_traj.append(curr_obs)
+            feature_trajs.append(feature_traj)
+        return np.array(feature_trajs)
     
     # transiton model
     # def f(self,x,u): 
     #     return self._A @ x + self._B @ u 
     
-    def reset(self, ordinary_state=None):
+    def reset(self, ordinary_state=None, target_time=None):
         
         self.time_count = 0 # time counting
+        
+        if target_time is not None:
+            self.target_time = target_time
         
         if ordinary_state is None:
             self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(self.observation_dim,))
@@ -234,12 +209,12 @@ class IntersectionEnv(core.Env):
         
         # Kinesiology
         x = vx * self.interval_time + \
-            0.5 * action[0] * self.interval_time **2
+            0.5 * action[0] * (self.interval_time/self.fps_second) **2
         y = vy * self.interval_time + \
-            0.5 * action[1] * self.interval_time **2
+            0.5 * action[1] * (self.interval_time/self.fps_second) **2
         
-        vx = vx + action[0] * self.interval_time
-        vy = vy + action[1] * self.interval_time
+        vx = vx + action[0] * (self.interval_time/self.fps_second)
+        vy = vy + action[1] * (self.interval_time/self.fps_second)
         
         # ebike max velosity limitation
         vel = np.array([vx,vy])
@@ -249,16 +224,15 @@ class IntersectionEnv(core.Env):
         time += self.interval_time
         
         # nearest car
-        # ! 轨迹只保留碰撞之前
-        
         try:
             intersection_car_location = self.environment_car_pos
-            temp_df = intersection_car_location[intersection_car_location['time']==time]
+            temp_df = intersection_car_location[intersection_car_location['fps']==time]
             temp_df = temp_df[['x','y']]
             # del temp_df['time']
             temp_array = np.array(temp_df)
             temp_array = np.square(temp_array) - np.square(np.array([x,y]))
             near_car_dis = temp_array.sum(axis=1).min()
+            near_car_dis = near_car_dis / self.px_per_meter
         except Exception:
             near_car_dis = 200
             
@@ -267,8 +241,7 @@ class IntersectionEnv(core.Env):
         traffic_sign = 0 if traffic_sign <= 0 else traffic_sign
         
         # last time
-        # last_time += self.interval_time
-        # threshold_vel = 3 # 3 px/fps
+
         if abs(vx) <= self.threshold_vel and abs(vy) <= self.threshold_vel:
             last_time += self.interval_time
         else:
@@ -299,8 +272,8 @@ class IntersectionEnv(core.Env):
         done = bool(
             self.state[4] <= self.crash_threshould
             or self.time_count > self.target_time
-            or not -self.pos_threshould<=self.state[0]<=self.pos_threshould
-            or not -self.pos_threshould<=self.state[0]<=self.pos_threshould
+            or not 0<=self.state[0]<=self.pos_threshould_x
+            or not 0<=self.state[1]<=self.pos_threshould_y
         )
         
         return done

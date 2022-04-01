@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-20 11:23:31
-LastEditTime: 2022-03-30 14:09:17
+LastEditTime: 2022-04-01 22:30:04
 LastEditors: Vansw
 Description: train process
 FilePath: //ebike_trajectory_prediction//units//train_process.py
@@ -16,6 +16,8 @@ import gym
 from tqdm import tqdm
 import datetime
 from stable_baselines3 import SAC
+from stable_baselines3.common.env_checker import check_env
+import numpy as np
 
 # self construstion
 from units.loss_func import maxentirl_loss
@@ -24,12 +26,15 @@ from units.agent import Agent
 from units.reward_cnn import RewardFunctionNet
 
 
+
 total_timesteps = 200
 log_interval = 200
 
-def train_irl_process(expert_single_traj, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path=None):
+def train_irl_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,curr_model_path,env_pos_path=None):
 
-    target_time = len(expert_single_traj)
+    # target_time = len(expert_trajs)
+    # target_time = np.apply_along_axis(lambda x: len(x),1,expert_trajs)
+    # target_time = target_time.max()
 
     train_loss = tf.keras.metrics.Mean('train_loss', dtype=tf.float32)
     
@@ -40,21 +45,18 @@ def train_irl_process(expert_single_traj, reward_train_episode,env_id,reward_fun
     
     for i_epi in tqdm(range(reward_train_episode)):
         
-        env = gym.make(env_id, reward_func=reward_func, target_time=target_time)
-        if env_pos_path is not None:
-            env.set_environment_pos(env_pos_path)
+        env = gym.make(env_id, reward_func=reward_func,file_path=env_pos_path)
+        # if env_pos_path is not None:
+        #     env.set_environment_pos(env_pos_path)
         
         agent = Agent(env, total_timesteps, log_interval)
         
-        # 有问题 生成轨迹问题 动态起点
-        test_traj = agent.generate_agent_traj(1, expert_single_traj)[0]
-        
-        
-        curr_policy_fe_traj = env.get_feature(test_traj)
-        expert_fe_trajs = env.get_feature(expert_single_traj)
+        test_trajs = agent.generate_agent_traj(expert_trajs)
+        curr_policy_fe_trajs = env.get_feature(test_trajs)
+        expert_fe_trajs = env.get_feature(expert_trajs)
         
         with tf.GradientTape() as grad:
-            loss = maxentirl_loss(curr_policy_fe_traj, expert_fe_trajs, reward_func)
+            loss = maxentirl_loss(curr_policy_fe_trajs, expert_fe_trajs, reward_func)
         reward_func_grad = grad.gradient(loss,reward_func.trainable_weights)
         tf.optimizers.Adam(lr).apply_gradients(zip(reward_func_grad, reward_func.trainable_weights))
         
@@ -77,18 +79,20 @@ def train_irl_process(expert_single_traj, reward_train_episode,env_id,reward_fun
         
     return curr_model_path
 
-def train_rl(expert_traj,feature_dim,hidden_dim,model_save_path,env_id,env_pos_path,curr_model_path):
+def train_rl(expert_trajs,feature_dim,hidden_dim,model_save_path,env_id,env_pos_path,curr_model_path):
     
+    expert_traj = expert_trajs[0]
     target_time = len(expert_traj)
     
     reward_func = RewardFunctionNet(feature_dim,hidden_dim)
     reward_func.eval()
     load_weights(reward_func,model_save_path)
     
-    env = gym.make(env_id, reward_func=reward_func, target_time=target_time)
-    if env_pos_path is not None:
-        env.set_environment_pos(env_pos_path)
-        
+    env = gym.make(env_id, reward_func=reward_func,file_path=env_pos_path)
+    # if env_pos_path is not None:
+    #     env.set_environment_pos(env_pos_path)
+    
+    # check_env(env)
     model = SAC('MlpPolicy', env, verbose=1)
     model.learn(total_timesteps=total_timesteps, log_interval=log_interval)
     
@@ -97,6 +101,6 @@ def train_rl(expert_traj,feature_dim,hidden_dim,model_save_path,env_id,env_pos_p
     
     model.save(curr_model_path)
     
-    test_traj = generate_single_traj(env,model,expert_traj[1])
+    test_traj = generate_single_traj(env,model,expert_traj[1],target_time)
     
     graph(expert_traj,test_traj)

@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 13:34:03
-LastEditTime: 2022-03-29 10:01:24
+LastEditTime: 2022-04-01 22:10:21
 LastEditors: Vansw
 Description: sub function
 FilePath: //ebike_trajectory_prediction//units//units.py
@@ -50,8 +50,8 @@ def graph(expert_traj,test_traj = None):
     ax.legend()
     plt.show()
     
-def generate_single_traj(env, model, expert_traj_state=None):
-    obs = env.reset(ordinary_state=expert_traj_state)
+def generate_single_traj(env, model, expert_traj_state=None, target_time=None):
+    obs = env.reset(ordinary_state=expert_traj_state,target_time=target_time)
     
     single_traj = []
     done = False
