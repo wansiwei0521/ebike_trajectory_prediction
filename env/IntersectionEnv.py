@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-04-01 22:28:13
+LastEditTime: 2022-04-02 17:59:48
 LastEditors: Vansw
 Description: IntersectionEnv with traffic signal
 FilePath: //ebike_trajectory_prediction//env//IntersectionEnv.py
@@ -91,7 +91,7 @@ class IntersectionEnv(core.Env):
         self.traffic_signal_max = 20
         self.last_time_threshould_min = 0
         # self.last_time_threshould_max = 10
-        self.acc_threshould = 3
+        self.acc_threshould = 3 # m/ss
         
         act_high = np.array([
             self.acc_threshould,
@@ -207,11 +207,11 @@ class IntersectionEnv(core.Env):
         x,y,vx,vy,near_car_dis,traffic_sign,time,last_time = self.state
         
         
-        # Kinesiology
-        x = vx * self.interval_time + \
-            0.5 * action[0] * (self.interval_time/self.fps_second) **2
-        y = vy * self.interval_time + \
-            0.5 * action[1] * (self.interval_time/self.fps_second) **2
+        # Kinesiology vel:m/s acc:m/ss
+        x += self.px_per_meter * (vx * (self.interval_time/self.fps_second) + \
+            0.5 * action[0] * (self.interval_time/self.fps_second) **2)
+        y += self.px_per_meter * (vy * (self.interval_time/self.fps_second) + \
+            0.5 * action[1] * (self.interval_time/self.fps_second) **2)
         
         vx = vx + action[0] * (self.interval_time/self.fps_second)
         vy = vy + action[1] * (self.interval_time/self.fps_second)
@@ -230,8 +230,8 @@ class IntersectionEnv(core.Env):
             temp_df = temp_df[['x','y']]
             # del temp_df['time']
             temp_array = np.array(temp_df)
-            temp_array = np.square(temp_array) - np.square(np.array([x,y]))
-            near_car_dis = temp_array.sum(axis=1).min()
+            temp_array = np.square(temp_array - np.array([x,y]))
+            near_car_dis = np.sqrt(temp_array.sum(axis=1)).min()
             near_car_dis = near_car_dis / self.px_per_meter
         except Exception:
             near_car_dis = 200
@@ -261,17 +261,13 @@ class IntersectionEnv(core.Env):
         else:
             reward = 0
         
-        # feature_num = 8 
-        # theta = np.random.normal(0, 1, size=feature_num)
-        # reward = np.dot(theta,self.state)
-        
         return reward
 
     def _get_done(self):
         
         done = bool(
-            self.state[4] <= self.crash_threshould
-            or self.time_count > self.target_time
+            # self.state[4] <= self.crash_threshould
+            self.time_count > self.target_time
             or not 0<=self.state[0]<=self.pos_threshould_x
             or not 0<=self.state[1]<=self.pos_threshould_y
         )

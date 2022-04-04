@@ -3,12 +3,13 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-18 13:34:03
-LastEditTime: 2022-04-01 22:10:21
+LastEditTime: 2022-04-03 13:19:54
 LastEditors: Vansw
 Description: sub function
 FilePath: //ebike_trajectory_prediction//units//units.py
 """
 
+from pickletools import float8
 import numpy as np
 import tensorlayer as tl
 
@@ -50,24 +51,39 @@ def graph(expert_traj,test_traj = None):
     ax.legend()
     plt.show()
     
+def graph_reward(rewards):
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.plot(list(range(len(rewards))), rewards, color='b', label='expert')
+    ax.grid()
+    ax.set_xlabel('x, px')
+    ax.set_ylabel('y, px')
+    ax.legend()
+    plt.show()
+    
+    
 def generate_single_traj(env, model, expert_traj_state=None, target_time=None):
     obs = env.reset(ordinary_state=expert_traj_state,target_time=target_time)
     
     single_traj = []
     done = False
+    rewards = []
 
     t = 0
     while not done:
         single_traj.append(obs)
+        
         action, _states = model.predict(obs, deterministic=True)
-        obs, _, done, _ = env.step(action)
+        obs, reward, done, _ = env.step(action)
+        
+        rewards.append(reward)
 
         t += 1
         
     single_traj.append(obs)
     
     single_traj = np.array(single_traj)
+    # print(np.array(single_traj,dtype=int),rewards)
     
     single_traj_xy = single_traj[:,[0,1]]
     
-    return single_traj_xy
+    return single_traj_xy,rewards

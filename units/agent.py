@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-19 10:06:34
-LastEditTime: 2022-04-01 22:31:58
+LastEditTime: 2022-04-03 12:21:01
 LastEditors: Vansw
 Description: generate training trajs
 FilePath: //ebike_trajectory_prediction//units//agent.py
@@ -28,13 +28,10 @@ class Agent:
         trajs = []
         
         if expert_trajs is not None:
+                
             for expert_traj in expert_trajs:
-            
-                # for expert_traj_state in expert_trajs[i]:
-                #     trajs.append(self._generate_single_trajs(expert_traj_state))
                 
                 trajs.append(self._generate_single_trajs(expert_traj[0],len(expert_traj)))
-                
         else:
                 trajs.append(self._generate_single_trajs())
 

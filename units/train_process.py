@@ -3,7 +3,7 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-20 11:23:31
-LastEditTime: 2022-04-01 22:30:04
+LastEditTime: 2022-04-02 17:09:18
 LastEditors: Vansw
 Description: train process
 FilePath: //ebike_trajectory_prediction//units//train_process.py
@@ -21,7 +21,7 @@ import numpy as np
 
 # self construstion
 from units.loss_func import maxentirl_loss
-from units.units import save_weights,load_weights,generate_single_traj,graph
+from units.units import save_weights,load_weights,generate_single_traj,graph,graph_reward
 from units.agent import Agent
 from units.reward_cnn import RewardFunctionNet
 
@@ -81,8 +81,6 @@ def train_irl_process(expert_trajs, reward_train_episode,env_id,reward_func,lr,c
 
 def train_rl(expert_trajs,feature_dim,hidden_dim,model_save_path,env_id,env_pos_path,curr_model_path):
     
-    expert_traj = expert_trajs[0]
-    target_time = len(expert_traj)
     
     reward_func = RewardFunctionNet(feature_dim,hidden_dim)
     reward_func.eval()
@@ -101,6 +99,14 @@ def train_rl(expert_trajs,feature_dim,hidden_dim,model_save_path,env_id,env_pos_
     
     model.save(curr_model_path)
     
-    test_traj = generate_single_traj(env,model,expert_traj[1],target_time)
-    
-    graph(expert_traj,test_traj)
+    # expert_traj = expert_trajs[1]
+    for expert_traj in expert_trajs:
+        target_time = len(expert_traj)
+        
+        test_traj,rewards = generate_single_traj(env,model,expert_traj[1],target_time)
+        
+        # graph_reward(rewards)
+        # print(rewards,len(test_traj))
+        graph(expert_traj,test_traj)
+        
+        
