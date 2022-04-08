@@ -3,17 +3,19 @@
 Author: Vansw
 Email: wansiwei1010@163.com
 Date: 2022-03-09 10:06:15
-LastEditTime: 2022-04-02 17:59:48
+LastEditTime: 2022-04-08 16:53:18
 LastEditors: Vansw
 Description: IntersectionEnv with traffic signal
 FilePath: //ebike_trajectory_prediction//env//IntersectionEnv.py
 """
+from cmath import nan
 from gym import spaces, core
 from gym.utils import seeding
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from ruamel.yaml import YAML
+import math
 
 class IntersectionEnv(core.Env):
     """
@@ -51,7 +53,7 @@ class IntersectionEnv(core.Env):
     """
 
     
-    def __init__(self, reward_func=None, file_path=None):
+    def __init__(self, reward_func=None, file_path=None, destination_func=None):
         
         super(IntersectionEnv, self).__init__()
         
@@ -73,10 +75,12 @@ class IntersectionEnv(core.Env):
         self.crash_threshould = config['crash_threshould']
         self.target_time = config['target_time']
         self.reward_func = reward_func
+        self.destination_func = destination_func
         # self.environment_car_pos = None
         self.threshold_vel = config['threshold_vel'] # is moving or not 5/24
         self.time_count = None
         self.vel_limited = config['vel_limited']
+        self.intersection_car_vel_limitation = config['intersection_car_vel_limitation']
         
         # dimension
         self.observation_dim = 8
@@ -92,6 +96,8 @@ class IntersectionEnv(core.Env):
         self.last_time_threshould_min = 0
         # self.last_time_threshould_max = 10
         self.acc_threshould = 3 # m/ss
+        # TEMP
+        self.distance_destination = None
         
         act_high = np.array([
             self.acc_threshould,
@@ -136,26 +142,61 @@ class IntersectionEnv(core.Env):
         
         x,y,vx,vy,near_car_dis,traffic_sign,time,last_time = state
         
-        # middle 1 or side 0 of the intersection
-        loc_of_road = 1 if self.road_x_down<x<self.road_x_top and self.road_y_down<y<self.road_y_top else 0
-        
-        # speeding: 1 for speeding
+        # 1 speed
         vel = np.array([vx,vy])
-        speeding = 1 if np.linalg.norm(vel)>self.speeding else 0
+        velocity = np.linalg.norm(vel)
         
-        # distence of car: safe for 1
-        distence_of_car = 1 if near_car_dis>=self.safe_dis else 0
+        # 2 direction
+        # direction = np.arctan(vx/vy)
+        direction = np.arcsin(vx/velocity)
+        direction = 0 if direction < 0.1 else direction
+        # print(direction,vx,velocity)
         
-        # traffic sign: red for 1
-        traf_sign = 1 if traffic_sign>0 else 0
+        # 3 risky
+        risky = np.exp(-near_car_dis/self.intersection_car_vel_limitation)
         
-        # waiting time
-        wait_time_thre = self.fps_second * self.wait_time_threshold
-        wait = 1 if last_time>=wait_time_thre else 0
+        # 4 crash
+        crash = 1 if near_car_dis < self.safe_dis else 0
         
-        feature = [loc_of_road, speeding, distence_of_car, traf_sign, wait]
+        # 5 waiting time:s
+        wait_time_thre = last_time / self.fps_second
         
-        return np.array(feature)
+        # 6 traffic
+        traf_sign = traffic_sign
+        
+        # 7 location
+        road_center_x = (self.road_x_down + self.road_x_top) * 0.5
+        road_center_y = (self.road_y_down + self.road_y_top) * 0.5
+        road_ceater = np.array([road_center_x, road_center_y],dtype=np.float32)
+        ebike_location = np.array([x, y],dtype=np.float32)
+        differ_location = road_ceater-ebike_location
+        center_diatance = np.linalg.norm(differ_location)
+        center_direction = np.arctan(differ_location[0]/differ_location[1])
+        is_approch = 1 if np.abs(center_direction-direction) > math.pi else -1
+        center_diatance = center_diatance * is_approch
+        
+        feature = [velocity,direction,risky,crash,wait_time_thre,traf_sign,center_diatance]
+        
+        # # middle 1 or side 0 of the intersection
+        # loc_of_road = 1 if self.road_x_down<x<self.road_x_top and self.road_y_down<y<self.road_y_top else 0
+        
+        # # speeding: 1 for speeding
+        # vel = np.array([vx,vy])
+        # speeding = 1 if np.linalg.norm(vel)>self.speeding else 0
+        
+        # # distence of car: safe for 1
+        # distence_of_car = 1 if near_car_dis>=self.safe_dis else 0
+        
+        # # traffic sign: red for 1
+        # traf_sign = 1 if traffic_sign>0 else 0
+        
+        # # waiting time
+        # wait_time_thre = self.fps_second * self.wait_time_threshold
+        # wait = 1 if last_time>=wait_time_thre else 0
+        
+        # feature = [loc_of_road, speeding, distence_of_car, traf_sign, wait]
+        
+        return np.array(feature,dtype=np.float32)
     
     def get_feature(self, trajs):
         feature_trajs = []
@@ -163,9 +204,18 @@ class IntersectionEnv(core.Env):
             feature_traj = []
             for t in range(0,len(traj)):
                 curr_obs = (self.feature_gamma**t)*self.get_state_feature(traj[t])
+                
+                # print(curr_obs)
+                
                 feature_traj.append(curr_obs)
+                
+            feature_traj = np.nan_to_num(feature_traj,nan=-1)
+            # print(feature_traj)
             feature_trajs.append(feature_traj)
-        return np.array(feature_trajs)
+            
+        # trajs_features = np.array(feature_trajs,dtype=object)
+        # np.nan_to_num(trajs_features,nan=0,copy=False)
+        return np.array(feature_trajs,dtype=object)
     
     # transiton model
     # def f(self,x,u): 
@@ -261,6 +311,13 @@ class IntersectionEnv(core.Env):
         else:
             reward = 0
         
+        # fe_tensor = tf.convert_to_tensor(np.array(self.state[0:4]), dtype=np.float32)
+        # loc = self.destination_func(fe_tensor).numpy().flatten()
+        loc = np.array([704,77],dtype=np.float32)
+        self.distance_destination = np.linalg.norm(loc-2*np.array(self.state[0:2])) / self.px_per_meter
+        if self.distance_destination < 5:
+            reward += 1000
+        
         return reward
 
     def _get_done(self):
@@ -268,6 +325,7 @@ class IntersectionEnv(core.Env):
         done = bool(
             # self.state[4] <= self.crash_threshould
             self.time_count > self.target_time
+            # or (self.distance_destination is not None and self.distance_destination < 5)
             or not 0<=self.state[0]<=self.pos_threshould_x
             or not 0<=self.state[1]<=self.pos_threshould_y
         )

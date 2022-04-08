@@ -12,3 +12,4 @@ px_per_meter: 12.9
 threshold_vel: 0.5
 vel_limited: 5.6
 video_size: [1000,950]
+intersection_car_vel_limitation: 11 #m/s
